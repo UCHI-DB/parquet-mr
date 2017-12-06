@@ -94,5 +94,18 @@ public interface ColumnWriter {
    * @return the number of bytes of memory used to buffer the current data
    */
   long getBufferedSizeInMemory();
+  
+  /**
+   * @author chunwei
+   * used to set globalDictMode
+   */
+  void setGlobalDictMode(boolean trueorfalse);
+  
+  /**
+   * @author chunwei
+   * get column globalDictMode
+   */
+  boolean getGlobalDictMode();
+  
 }
 

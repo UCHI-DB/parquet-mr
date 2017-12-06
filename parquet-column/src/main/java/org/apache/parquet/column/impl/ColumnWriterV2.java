@@ -58,6 +58,11 @@ final class ColumnWriterV2 implements ColumnWriter {
 
   private Statistics<?> statistics;
   private long rowsWrittenSoFar = 0;
+  
+  /** 
+   * @author chunwei
+   * indicates if global dictionary is used */
+  protected boolean globalDictMode = false;
 
   public ColumnWriterV2(
       ColumnDescriptor path,
@@ -220,7 +225,8 @@ final class ColumnWriterV2 implements ColumnWriter {
    * Is called right after writePage
    */
   public void finalizeColumnChunk() {
-    final DictionaryPage dictionaryPage = dataColumn.toDictPageAndClose();
+	// TODO logic need to be redesign here
+	final DictionaryPage dictionaryPage = dataColumn.toDictPageAndClose();
     if (dictionaryPage != null) {
       if (DEBUG) LOG.debug("write dictionary");
       try {
@@ -228,7 +234,8 @@ final class ColumnWriterV2 implements ColumnWriter {
       } catch (IOException e) {
         throw new ParquetEncodingException("could not write dictionary page for " + path, e);
       }
-      dataColumn.resetDictionary();
+      if (this.getGlobalDictMode())
+    	  	dataColumn.resetDictionary();
     }
   }
 
@@ -313,4 +320,21 @@ final class ColumnWriterV2 implements ColumnWriter {
     valueCount = 0;
     resetStatistics();
   }
+  
+  /**
+   * @author chunwei
+   * used to set globalDictMode
+   */
+  @Override
+  public void setGlobalDictMode(boolean trueorfalse) {
+	this.globalDictMode = trueorfalse;
+  }
+  
+  /**
+   * @author chunwei
+   * get column globalDictMode
+   */
+  @Override
+  public boolean getGlobalDictMode() {
+	return this.globalDictMode;
 }

@@ -58,6 +58,9 @@ final class ColumnWriterV1 implements ColumnWriter {
   private int valueCountForNextSizeCheck;
 
   private Statistics statistics;
+  
+  /** indicates if global dictionary is used */
+  protected boolean globalDictMode = false;
 
   public ColumnWriterV1(ColumnDescriptor path, PageWriter pageWriter,
                         ParquetProperties props) {
@@ -237,6 +240,7 @@ final class ColumnWriterV1 implements ColumnWriter {
     if (valueCount > 0) {
       writePage();
     }
+    // TODO logic need to be redesign here
     final DictionaryPage dictionaryPage = dataColumn.toDictPageAndClose();
     if (dictionaryPage != null) {
       if (DEBUG) LOG.debug("write dictionary");
@@ -245,7 +249,8 @@ final class ColumnWriterV1 implements ColumnWriter {
       } catch (IOException e) {
         throw new ParquetEncodingException("could not write dictionary page for " + path, e);
       }
-      dataColumn.resetDictionary();
+      if (this.getGlobalDictMode())
+      	dataColumn.resetDictionary();
     }
   }
 
@@ -282,5 +287,23 @@ final class ColumnWriterV1 implements ColumnWriter {
     b.append(indent).append(String.format("  total: %,d/%,d", getBufferedSizeInMemory(), allocatedSize())).append("\n");
     b.append(indent).append("}\n");
     return b.toString();
+  }
+  
+  /**
+   * @author chunwei
+   * used to set globalDictMode
+   */
+  @Override
+  public void setGlobalDictMode(boolean trueorfalse) {
+	this.globalDictMode = trueorfalse;
+  }
+  
+  /**
+   * @author chunwei
+   * get column globalDictMode
+   */
+  @Override
+  public boolean getGlobalDictMode() {
+	return this.globalDictMode;
   }
 }
