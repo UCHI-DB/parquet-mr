@@ -84,6 +84,11 @@ class DictionaryPageReader implements DictionaryPageReadStore {
       throw new ParquetDecodingException(
           "Cannot load dictionary, unknown column: " + dotPath);
     }
+    
+    if (this.reader.hasGlobalDictionary(dotPath)) {
+    	  return this.reader.getGlobalDictPage(dotPath);
+    }
+    		
 
     if (cache.containsKey(dotPath)) {
       return cache.get(dotPath);

@@ -95,6 +95,7 @@ import org.apache.parquet.io.ParquetDecodingException;
 import org.apache.parquet.io.InputFile;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -508,6 +509,7 @@ public class ParquetFileReader implements Closeable {
   private final SeekableInputStream f;
   private final FileStatus fileStatus;
   private final Map<ColumnPath, ColumnDescriptor> paths = new HashMap<ColumnPath, ColumnDescriptor>();
+  private final Map<String, DictionaryPage> globalDicts = new HashMap<String, DictionaryPage>();
   private final FileMetaData fileMetaData; // may be null
   private final ByteBufferAllocator allocator;
   private final Configuration conf;
@@ -604,14 +606,43 @@ public class ParquetFileReader implements Closeable {
     this.footer = footer;
     this.fileMetaData = footer.getFileMetaData();
     this.blocks = footer.getBlocks();
+    Map<String, String> keyValueMeta = footer.getFileMetaData().getKeyValueMetaData();
     for (ColumnDescriptor col : footer.getFileMetaData().getSchema().getColumns()) {
       paths.put(ColumnPath.get(col.getPath()), col);
+      String dotPath = Strings.join(col.getPath(), ".");
+      if (keyValueMeta.containsKey(dotPath)) {
+    	  	this.globalDicts.put(dotPath, GlobalDictFromString(keyValueMeta.get(dotPath)));
+      }
     }
     // the page size parameter isn't meaningful when only using
     // the codec factory to get decompressors
     this.codecFactory = new CodecFactory(conf, 0);
     this.allocator = new HeapByteBufferAllocator();
   }
+  
+  /**
+   * @author chunwei
+   * build dictionarypage from String extracted from keyvaluemetadata in file footer
+   * @param valueInFooter value getting from keyvaluemetadata for globaldictionary
+   */
+  public DictionaryPage GlobalDictFromString (String valueInFooter) {
+	String[] dictPageMeta = valueInFooter.split(",");
+	assert(dictPageMeta.length == 3);
+	byte[] strToByte = dictPageMeta[0].getBytes();
+	BytesInput bytes = BytesInput.from(strToByte);
+	int strToInt = Integer.parseInt(dictPageMeta[1]);
+	Encoding encoding = Encoding.valueOf(dictPageMeta[2]);
+	return new DictionaryPage(bytes, strToInt, encoding);
+  }
+  
+  public boolean hasGlobalDictionary (String dotPath) {
+	return this.globalDicts.containsKey(dotPath);
+  }
+  
+  public DictionaryPage getGlobalDictPage (String dotPath) {
+	return this.globalDicts.get(dotPath);
+  }
+  
 
   public ParquetMetadata getFooter() {
     if (footer == null) {
