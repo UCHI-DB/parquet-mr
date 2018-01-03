@@ -289,19 +289,11 @@ final class ColumnWriterV1 implements ColumnWriter {
     return b.toString();
   }
   
-  /**
-   * @author chunwei
-   * used to set globalDictMode
-   */
   @Override
   public void setGlobalDictMode(boolean trueorfalse) {
 	this.globalDictMode = trueorfalse;
   }
   
-  /**
-   * @author chunwei
-   * get column globalDictMode
-   */
   @Override
   public boolean getGlobalDictMode() {
 	return this.globalDictMode;

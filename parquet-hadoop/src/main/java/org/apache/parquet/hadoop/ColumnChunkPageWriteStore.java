@@ -175,7 +175,7 @@ class ColumnChunkPageWriteStore implements PageWriteStore {
      * @return dictionary page
      */
     public DictionaryPage getDictionaryPage() {
-    	  return this.dictionaryPage;
+    	  return dictionaryPage;
     }
 
     private int toIntWithCheck(long size) {
@@ -262,14 +262,15 @@ class ColumnChunkPageWriteStore implements PageWriteStore {
       String dotPath = Strings.join(path.getPath(), ".");
       StringBuilder dictSB = new StringBuilder();
       DictionaryPage dictPage = pageWriter.getDictionaryPage();
-      dictSB.append(new String(dictPage.getBytes().toByteArray()));
-      dictSB.append(",");
-      dictSB.append(dictPage.getDictionarySize());
-      dictSB.append(",");
-      dictSB.append(dictPage.getEncoding());
-      String dictPageToStr = dictSB.toString();
-      writer.addKeyValue(dotPath,dictPageToStr);
-
+      if (dictPage != null) {
+    	    dictSB.append(new String(dictPage.getBytes().toByteArray()));
+    	    dictSB.append(",");
+        dictSB.append(dictPage.getDictionarySize());
+        dictSB.append(",");
+        dictSB.append(dictPage.getEncoding());
+        String dictPageToStr = dictSB.toString();
+        writer.addKeyValue(dotPath,dictPageToStr);
+        }
       pageWriter.writeToFileWriter(writer);
     }
   }

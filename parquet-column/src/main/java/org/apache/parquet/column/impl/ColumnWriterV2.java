@@ -321,20 +321,14 @@ final class ColumnWriterV2 implements ColumnWriter {
     resetStatistics();
   }
   
-  /**
-   * @author chunwei
-   * used to set globalDictMode
-   */
+
   @Override
   public void setGlobalDictMode(boolean trueorfalse) {
 	this.globalDictMode = trueorfalse;
   }
   
-  /**
-   * @author chunwei
-   * get column globalDictMode
-   */
   @Override
   public boolean getGlobalDictMode() {
 	return this.globalDictMode;
+  }
 }

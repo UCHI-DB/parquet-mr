@@ -676,6 +676,18 @@ final class ValidatingColumnWriteStore implements ColumnWriteStore {
       public void write(double value, int repetitionLevel, int definitionLevel) {
         validate(value, repetitionLevel, definitionLevel);
       }
+
+	  @Override
+	  public void setGlobalDictMode(boolean trueorfalse) {
+	    // TODO Auto-generated method stub 
+		
+	  }
+
+	  @Override
+	  public boolean getGlobalDictMode() {
+	    // TODO Auto-generated method stub
+		return false;
+	  }
     };
   }
 
