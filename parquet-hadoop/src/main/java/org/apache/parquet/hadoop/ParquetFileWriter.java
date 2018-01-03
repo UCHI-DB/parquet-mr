@@ -134,6 +134,7 @@ public class ParquetFileWriter {
   private long currentChunkValueCount;            // set in startColumn
   private long currentChunkFirstDataPage;         // set in startColumn (out.pos())
   private long currentChunkDictionaryPageOffset;  // set in writeDictionaryPage
+  private Map<String, String> keyValueSet = new HashMap<String, String>(); // save global dictionary
 
   /**
    * Captures the order in which methods should be called
@@ -246,6 +247,16 @@ public class ParquetFileWriter {
 
     this.encodingStatsBuilder = new EncodingStats.Builder();
   }
+  
+  /**
+   * @author chunwei
+   * @param key 
+   * @param value extra information you want add into the file
+   */
+  public void addKeyValue(String key, String value) {
+		// TODO Auto-generated method stub
+	  this.keyValueSet.put(key, value);
+	}
 
   /**
    * FOR TESTING ONLY.
@@ -635,9 +646,14 @@ public class ParquetFileWriter {
    * @throws IOException
    */
   public void end(Map<String, String> extraMetaData) throws IOException {
+	
     state = state.end();
     LOG.debug("{}: end", out.getPos());
-    ParquetMetadata footer = new ParquetMetadata(new FileMetaData(schema, extraMetaData, Version.FULL_VERSION), blocks);
+    // Write key value set into footer by default
+    for (Entry<String, String> entry : extraMetaData.entrySet()) {
+    	  this.addKeyValue(entry.getKey(), entry.getValue());	
+    }
+    ParquetMetadata footer = new ParquetMetadata(new FileMetaData(schema, this.keyValueSet, Version.FULL_VERSION), blocks);
     serializeFooter(footer, out);
     out.close();
   }
@@ -930,4 +946,6 @@ public class ParquetFileWriter {
       return (remaining <= maxPaddingSize);
     }
   }
+
+
 }

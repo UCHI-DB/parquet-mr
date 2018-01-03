@@ -249,7 +249,7 @@ final class ColumnWriterV1 implements ColumnWriter {
       } catch (IOException e) {
         throw new ParquetEncodingException("could not write dictionary page for " + path, e);
       }
-      if (this.getGlobalDictMode())
+      if (!this.getGlobalDictMode())
       	dataColumn.resetDictionary();
     }
   }

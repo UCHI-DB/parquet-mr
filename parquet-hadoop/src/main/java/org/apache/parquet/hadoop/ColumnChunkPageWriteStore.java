@@ -41,6 +41,7 @@ import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.CodecFactory.BytesCompressor;
 import org.apache.parquet.io.ParquetEncodingException;
 import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.Strings;
 import org.apache.parquet.bytes.ByteBufferAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -167,6 +168,15 @@ class ColumnChunkPageWriteStore implements PageWriteStore {
       );
       dataEncodings.add(dataEncoding);
     }
+    
+    /**
+     * 
+     * @author Chunwei
+     * @return dictionary page
+     */
+    public DictionaryPage getDictionaryPage() {
+    	  return this.dictionaryPage;
+    }
 
     private int toIntWithCheck(long size) {
       if (size > Integer.MAX_VALUE) {
@@ -248,6 +258,18 @@ class ColumnChunkPageWriteStore implements PageWriteStore {
   public void flushToFileWriter(ParquetFileWriter writer) throws IOException {
     for (ColumnDescriptor path : schema.getColumns()) {
       ColumnChunkPageWriter pageWriter = writers.get(path);
+      // Add global dictionary here 
+      String dotPath = Strings.join(path.getPath(), ".");
+      StringBuilder dictSB = new StringBuilder();
+      DictionaryPage dictPage = pageWriter.getDictionaryPage();
+      dictSB.append(new String(dictPage.getBytes().toByteArray()));
+      dictSB.append(",");
+      dictSB.append(dictPage.getDictionarySize());
+      dictSB.append(",");
+      dictSB.append(dictPage.getEncoding());
+      String dictPageToStr = dictSB.toString();
+      writer.addKeyValue(dotPath,dictPageToStr);
+
       pageWriter.writeToFileWriter(writer);
     }
   }
