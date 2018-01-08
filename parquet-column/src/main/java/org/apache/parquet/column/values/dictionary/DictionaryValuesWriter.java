@@ -94,6 +94,10 @@ public abstract class DictionaryValuesWriter extends ValuesWriter implements Req
 
   /* dictionary encoded values */
   protected IntList encodedValues = new IntList();
+  
+  /* frequency for each original value */
+  private List<Integer> frequencyRecorder = new ArrayList<Integer>();
+  
 
   /** indicates if this is the first page being processed */
   protected boolean firstPage = true;
@@ -119,6 +123,21 @@ public abstract class DictionaryValuesWriter extends ValuesWriter implements Req
     return ret;
   }
 
+  /**
+   * update the frequency of original value
+   * @author chunwei
+   * @param loc location to update
+   */
+  public void updateFrequency(int loc) {
+	if (loc < 0) {
+	  frequencyRecorder.add(loc, 1);
+	}
+	else {
+	  int count = frequencyRecorder.get(loc) + 1;
+	  frequencyRecorder.set(loc, count);
+	}
+  }
+  
   @Override
   public boolean shouldFallBack() {
     // if the dictionary reaches the max byte size or the values can not be encoded on 4 bytes anymore.
@@ -140,6 +159,7 @@ public abstract class DictionaryValuesWriter extends ValuesWriter implements Req
       clearDictionaryContent();
       dictionaryByteSize = 0;
       encodedValues = new IntList();
+      frequencyRecorder = new ArrayList<Integer>();
     }
   }
 
@@ -257,6 +277,7 @@ public abstract class DictionaryValuesWriter extends ValuesWriter implements Req
     @Override
     public void writeBytes(Binary v) {
       int id = binaryDictionaryContent.getInt(v);
+      updateFrequency(id);
       if (id == -1) {
         id = binaryDictionaryContent.size();
         binaryDictionaryContent.put(v.copy(), id);
@@ -327,6 +348,7 @@ public abstract class DictionaryValuesWriter extends ValuesWriter implements Req
     @Override
     public void writeBytes(Binary value) {
       int id = binaryDictionaryContent.getInt(value);
+      updateFrequency(id);
       if (id == -1) {
         id = binaryDictionaryContent.size();
         binaryDictionaryContent.put(value.copy(), id);
@@ -371,6 +393,7 @@ public abstract class DictionaryValuesWriter extends ValuesWriter implements Req
     @Override
     public void writeLong(long v) {
       int id = longDictionaryContent.get(v);
+      updateFrequency(id);
       if (id == -1) {
         id = longDictionaryContent.size();
         longDictionaryContent.put(v, id);
@@ -442,6 +465,7 @@ public abstract class DictionaryValuesWriter extends ValuesWriter implements Req
     @Override
     public void writeDouble(double v) {
       int id = doubleDictionaryContent.get(v);
+      updateFrequency(id);
       if (id == -1) {
         id = doubleDictionaryContent.size();
         doubleDictionaryContent.put(v, id);
@@ -513,6 +537,7 @@ public abstract class DictionaryValuesWriter extends ValuesWriter implements Req
     @Override
     public void writeInteger(int v) {
       int id = intDictionaryContent.get(v);
+      updateFrequency(id);
       if (id == -1) {
         id = intDictionaryContent.size();
         intDictionaryContent.put(v, id);
@@ -584,6 +609,7 @@ public abstract class DictionaryValuesWriter extends ValuesWriter implements Req
     @Override
     public void writeFloat(float v) {
       int id = floatDictionaryContent.get(v);
+      updateFrequency(id);
       if (id == -1) {
         id = floatDictionaryContent.size();
         floatDictionaryContent.put(v, id);
