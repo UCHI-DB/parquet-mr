@@ -130,12 +130,17 @@ public abstract class DictionaryValuesWriter extends ValuesWriter implements Req
    */
   public void updateFrequency(int loc) {
 	if (loc < 0) {
-	  frequencyRecorder.add(loc, 1);
+	  frequencyRecorder.add(1);
 	}
 	else {
 	  int count = frequencyRecorder.get(loc) + 1;
 	  frequencyRecorder.set(loc, count);
 	}
+  }
+  
+  
+  public List<Integer> getFrequency(){
+	return frequencyRecorder;
   }
   
   @Override
