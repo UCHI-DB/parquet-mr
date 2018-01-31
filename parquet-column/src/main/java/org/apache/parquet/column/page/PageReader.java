@@ -40,4 +40,10 @@ public interface PageReader {
    * @return the next page in that chunk or null if after the last page
    */
   DataPage readPage();
+  
+  /**
+   * @author chunwei
+   * @return number of rows skipped
+   */
+  int checkSkipped();
 }

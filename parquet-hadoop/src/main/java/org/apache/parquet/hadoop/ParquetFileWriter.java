@@ -487,8 +487,6 @@ public class ParquetFileWriter {
     this.currentBlock.setTotalByteSize(currentBlock.getTotalByteSize() + uncompressedLength);
     this.uncompressedLength = 0;
     this.compressedLength = 0;
-    //add column statistics into footer
-    this.addKeyValue(currentChunkPath.toString(), currentStatistics.toString());
   }
 
   /**

@@ -141,6 +141,12 @@ public class TestStatistics {
     public DataPage readPage() {
       return data;
     }
+
+	@Override
+	public int checkSkipped() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
   }
 
   private static <T extends Comparable<T>> Statistics<T> getStatisticsFromPageHeader(DataPage page) {

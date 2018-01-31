@@ -287,55 +287,17 @@ public class StatisticsPageFilter implements FilterPredicate.Visitor<Boolean> {
         "This predicate contains a not! Did you forget to run this predicate through LogicalInverseRewriter? " + not);
   }
 
-  private <T extends Comparable<T>, U extends UserDefinedPredicate<T>> Boolean visit(UserDefined<T, U> ud, boolean inverted) {
-    Column<T> filterColumn = ud.getColumn();
-    ColumnChunkMetaData columnChunk = getColumnChunk(filterColumn.getColumnPath());
-    U udp = ud.getUserDefinedPredicate();
+@Override
+public <T extends Comparable<T>, U extends UserDefinedPredicate<T>> Boolean visit(UserDefined<T, U> udp) {
+	// TODO Auto-generated method stub
+	return null;
+}
 
-    if (columnChunk == null) {
-      // the column isn't in this file so all values are null.
-      // lets run the udp with null value to see if it keeps null or not.
-      if (inverted) {
-        return udp.keep(null);
-      } else {
-        return !udp.keep(null);
-      }
-    }
+@Override
+public <T extends Comparable<T>, U extends UserDefinedPredicate<T>> Boolean visit(LogicalNotUserDefined<T, U> udp) {
+	// TODO Auto-generated method stub
+	return null;
+}
 
-    Statistics<T> stats = columnChunk.getStatistics();
-
-    if (stats.isEmpty()) {
-      // we have no statistics available, we cannot drop any page
-      return BLOCK_MIGHT_MATCH;
-    }
-
-    if (isAllNulls(columnChunk)) {
-      // lets run the udp with null value to see if it keeps null or not.
-      if (inverted) {
-        return udp.keep(null);
-      } else {
-        return !udp.keep(null);
-      }
-    }
-
-    org.apache.parquet.filter2.predicate.Statistics<T> udpStats =
-        new org.apache.parquet.filter2.predicate.Statistics<T>(stats.genericGetMin(), stats.genericGetMax());
-
-    if (inverted) {
-      return udp.inverseCanDrop(udpStats);
-    } else {
-      return udp.canDrop(udpStats);
-    }
-  }
-
-  @Override
-  public <T extends Comparable<T>, U extends UserDefinedPredicate<T>> Boolean visit(UserDefined<T, U> ud) {
-    return visit(ud, false);
-  }
-
-  @Override
-  public <T extends Comparable<T>, U extends UserDefinedPredicate<T>> Boolean visit(LogicalNotUserDefined<T, U> lnud) {
-    return visit(lnud.getUserDefined(), true);
-  }
 
 }

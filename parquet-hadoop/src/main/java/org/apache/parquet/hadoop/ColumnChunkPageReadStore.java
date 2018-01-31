@@ -33,6 +33,10 @@ import org.apache.parquet.column.page.DictionaryPage;
 import org.apache.parquet.column.page.DictionaryPageReadStore;
 import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.column.page.PageReader;
+import org.apache.parquet.filter2.bitmap.Bitmap;
+import org.apache.parquet.filter2.bitmap.BitmapPageFilter;
+import org.apache.parquet.filter2.predicate.FilterPredicate;
+import org.apache.parquet.filter2.statisticslevel.StatisticsPageFilter;
 import org.apache.parquet.hadoop.CodecFactory.BytesDecompressor;
 import org.apache.parquet.io.ParquetDecodingException;
 import org.slf4j.Logger;
@@ -60,18 +64,35 @@ class ColumnChunkPageReadStore implements PageReadStore, DictionaryPageReadStore
     private final long valueCount;
     private final List<DataPage> compressedPages;
     private final DictionaryPage compressedDictionaryPage;
+    private FilterPredicate filterPredicate = null;
+    private int skipped;
+	private Bitmap bitmap = null;
+	private long startpos;
 
     ColumnChunkPageReader(BytesDecompressor decompressor, List<DataPage> compressedPages, DictionaryPage compressedDictionaryPage) {
       this.decompressor = decompressor;
       this.compressedPages = new LinkedList<DataPage>(compressedPages);
       this.compressedDictionaryPage = compressedDictionaryPage;
       long count = 0;
+      long starpos = 0;
       for (DataPage p : compressedPages) {
         count += p.getValueCount();
       }
       this.valueCount = count;
     }
 
+    ColumnChunkPageReader(BytesDecompressor decompressor, List<DataPage> compressedPages, DictionaryPage compressedDictionaryPage, FilterPredicate filterPredicate) {
+    	  this(decompressor, compressedPages, compressedDictionaryPage);
+    	  this.skipped = 0;
+    	  this.filterPredicate = filterPredicate;
+      }
+    
+    ColumnChunkPageReader(BytesDecompressor decompressor, List<DataPage> compressedPages, DictionaryPage compressedDictionaryPage, Bitmap bitmap, int startpos) {
+  	  this(decompressor, compressedPages, compressedDictionaryPage);
+  	  this.skipped = 0;
+  	  this.bitmap  = bitmap;
+  	  this.startpos = startpos;
+    }
     @Override
     public long getTotalValueCount() {
       return valueCount;
@@ -82,49 +103,62 @@ class ColumnChunkPageReadStore implements PageReadStore, DictionaryPageReadStore
       if (compressedPages.isEmpty()) {
         return null;
       }
-      DataPage compressedPage = compressedPages.remove(0);
-      return compressedPage.accept(new DataPage.Visitor<DataPage>() {
-        @Override
-        public DataPage visit(DataPageV1 dataPageV1) {
-          try {
-            return new DataPageV1(
-                decompressor.decompress(dataPageV1.getBytes(), dataPageV1.getUncompressedSize()),
-                dataPageV1.getValueCount(),
-                dataPageV1.getUncompressedSize(),
-                dataPageV1.getStatistics(),
-                dataPageV1.getRlEncoding(),
-                dataPageV1.getDlEncoding(),
-                dataPageV1.getValueEncoding());
-          } catch (IOException e) {
-            throw new ParquetDecodingException("could not decompress page", e);
-          }
-        }
-
-        @Override
-        public DataPage visit(DataPageV2 dataPageV2) {
-          if (!dataPageV2.isCompressed()) {
-            return dataPageV2;
-          }
-          try {
-            int uncompressedSize = Ints.checkedCast(
-                dataPageV2.getUncompressedSize()
-                - dataPageV2.getDefinitionLevels().size()
-                - dataPageV2.getRepetitionLevels().size());
-            return DataPageV2.uncompressed(
-                dataPageV2.getRowCount(),
-                dataPageV2.getNullCount(),
-                dataPageV2.getValueCount(),
-                dataPageV2.getRepetitionLevels(),
-                dataPageV2.getDefinitionLevels(),
-                dataPageV2.getDataEncoding(),
-                decompressor.decompress(dataPageV2.getData(), uncompressedSize),
-                dataPageV2.getStatistics()
-                );
-          } catch (IOException e) {
-            throw new ParquetDecodingException("could not decompress page", e);
-          }
-        }
-      });
+      while(!compressedPages.isEmpty()) {
+    	    DataPage compressedPage = compressedPages.remove(0);
+    	    if (filterPredicate != null && StatisticsPageFilter.canDrop(filterPredicate, compressedPage)) {
+    	    	  this.setSkipped(getSkipped()+compressedPage.getValueCount());
+    	    }
+    	    else if (bitmap != null && BitmapPageFilter.BitmapPageFilter(bitmap, compressedPage, startpos)) {
+    	    	  this.setSkipped(getSkipped()+compressedPage.getValueCount());
+    	    	  startpos += compressedPage.getValueCount();
+    	    }
+    	    	else{
+    	    	  startpos += compressedPage.getValueCount();
+	    	  return compressedPage.accept(new DataPage.Visitor<DataPage>() {
+	    	          @Override
+	    	          public DataPage visit(DataPageV1 dataPageV1) {
+	    	            try {
+	    	              return new DataPageV1(
+	    	                  decompressor.decompress(dataPageV1.getBytes(), dataPageV1.getUncompressedSize()),
+	    	                  dataPageV1.getValueCount(),
+	                      dataPageV1.getUncompressedSize(),
+	                      dataPageV1.getStatistics(),
+	    	                  dataPageV1.getRlEncoding(),
+	    	                  dataPageV1.getDlEncoding(),
+	    	                  dataPageV1.getValueEncoding());
+	    	            } catch (IOException e) {
+	    	              throw new ParquetDecodingException("could not decompress page", e);
+	    	            }
+	    	          }
+	    	          
+	    	          @Override
+	    	          public DataPage visit(DataPageV2 dataPageV2) {
+	    	            if (!dataPageV2.isCompressed()) {
+	    	              return dataPageV2;
+	    	            }
+	                try {
+    	                  int uncompressedSize = Ints.checkedCast(
+	    	                  dataPageV2.getUncompressedSize()
+	    	                  - dataPageV2.getDefinitionLevels().size()
+	    	                  - dataPageV2.getRepetitionLevels().size());
+	    	              return DataPageV2.uncompressed(
+	    	                  dataPageV2.getRowCount(),
+	    	                  dataPageV2.getNullCount(),
+	    	                  dataPageV2.getValueCount(),
+	                      dataPageV2.getRepetitionLevels(),
+	                      dataPageV2.getDefinitionLevels(),
+	    	                  dataPageV2.getDataEncoding(),
+	    	                  decompressor.decompress(dataPageV2.getData(), uncompressedSize),
+	    	                  dataPageV2.getStatistics()
+	    	                  );
+	    	            } catch (IOException e) {
+	    	              throw new ParquetDecodingException("could not decompress page", e);
+	    	            }
+	    	          }
+	    	        });
+    	    }
+      }
+	  return null;
     }
 
     @Override
@@ -141,6 +175,21 @@ class ColumnChunkPageReadStore implements PageReadStore, DictionaryPageReadStore
         throw new ParquetDecodingException("Could not decompress dictionary page", e);
       }
     }
+
+	public int getSkipped() {
+	  return skipped;
+	}
+
+	public void setSkipped(int skipped) {
+	  this.skipped = skipped;
+	}
+	
+	@Override
+	public int checkSkipped() {
+	  int ret = getSkipped();
+	  setSkipped(0);
+	  return ret;
+	}
   }
 
   private final Map<ColumnDescriptor, ColumnChunkPageReader> readers = new HashMap<ColumnDescriptor, ColumnChunkPageReader>();

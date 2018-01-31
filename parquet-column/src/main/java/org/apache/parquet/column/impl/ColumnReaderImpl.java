@@ -155,6 +155,7 @@ public class ColumnReaderImpl implements ColumnReader {
 
   private final PrimitiveConverter converter;
   private Binding binding;
+  private OffheapReadSopport currentOffheapPageInf = null;
 
   // this is needed because we will attempt to read the value twice when filtering
   // TODO: rework that
@@ -528,6 +529,11 @@ public class ColumnReaderImpl implements ColumnReader {
         return;
       }
       readPage();
+      if (isFullyConsumed()) {
+        LOG.debug("end reached");
+        repetitionLevel = 0; // the next repetition level
+        return;
+      }
     }
     readRepetitionAndDefinitionLevels();
   }
@@ -535,6 +541,14 @@ public class ColumnReaderImpl implements ColumnReader {
   private void readPage() {
     LOG.debug("loading page");
     DataPage page = pageReader.readPage();
+    int skipping = pageReader.checkSkipped();
+    this.readValues += skipping;
+    this.endOfPageValueCount += skipping;
+    if (isFullyConsumed()) {
+      LOG.debug("end reached");
+      repetitionLevel = 0; // the next repetition level
+      return;
+    }
     page.accept(new DataPage.Visitor<Void>() {
       @Override
       public Void visit(DataPageV1 dataPageV1) {
@@ -551,7 +565,7 @@ public class ColumnReaderImpl implements ColumnReader {
 
   private void initDataReader(Encoding dataEncoding, ByteBuffer bytes, int offset, int valueCount) {
     ValuesReader previousReader = this.dataColumn;
-
+    this.currentOffheapPageInf = new OffheapReadSopport(dataEncoding, bytes, offset, valueCount, readValues, dictionary);
     this.currentEncoding = dataEncoding;
     this.pageValueCount = valueCount;
     this.endOfPageValueCount = readValues + pageValueCount;
@@ -631,6 +645,12 @@ public class ColumnReaderImpl implements ColumnReader {
 
   private boolean isPageFullyConsumed() {
     return readValues >= endOfPageValueCount;
+  }
+  
+  public OffheapReadSopport offheapSupport() {
+	  readPage();
+	  this.readValues += currentOffheapPageInf.getValueCount();
+	  return this.currentOffheapPageInf;
   }
 
   /**

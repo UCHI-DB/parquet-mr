@@ -66,4 +66,10 @@ public class MemPageReader implements PageReader {
     return dictionaryPage;
   }
 
+  @Override
+  public int checkSkipped() {
+	// TODO Auto-generated method stub
+	return 0;
+  }
+
 }
